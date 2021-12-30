@@ -5,63 +5,90 @@
 #define DATA  PB0
 #define CLOCK PB2
 #define LATCH PB4
-#define BUTTON PB1
+#define BUTTON PB1  // dont change this
 #define MAX_SIZE 20
 
 uint8_t N;
 uint8_t i;
-uint8_t mem; // 
-uint8_t seq[MAX_SIZE]; // 4*MAX_SIZE numbers or 2*MAX_SIZE hex numbers
-uint8_t mode; 
+uint8_t temp;
+uint16_t rand_num;
+uint8_t seq[MAX_SIZE]; // 4*MAX_SIZE numbers
+uint8_t active; 
 /*
-1 bit: 0 - 4 bit mode, 1 - 16 bit mode
-2,3 bit: led id
-4 bit: 1 button is pressed
-5 bit: 2 button is pressed
-6 bit: 3 button is pressed
-7 bit: 4 button is pressed
+mode :
+1 - 4 bit: active button
+5 - 8 bit: active led
+
+shift reg:
+1 - 4 bit: button id
+5 - 8 bit: led id
 */
 void shift_register(uint8_t value)
 {
-  uint8_t i;
-
-  for (i = 0; i < 8; i++)
+  for (temp = 0; temp < 8; temp++)
   {
-    if (value & (1 << (7 - i)))
-    {
+    if (value & (1 << (7 - temp)))
       PORTB |= (1 << DATA);
-    }
     else
-    {
       PORTB &= ~(1 << DATA);
-    }
     PORTB |= (1 << CLOCK);
     PORTB &= ~(1 << CLOCK);
   }
 }
 ISR(INT0_vect){
 	_delay_ms(100);
-	if((PINB & (1<<INPUT))) return;
-	mode |= (1<<(3+((mode>>1)&0b11))); // set button pressed
+	if((PINB & (1<<INPUT))) return; // avoid noise
+    if()
 }
-uint8_t get_num(uint16_t pos){
-	eeprom_busy_wait();
-	mem = eeprom_read_byte()
-    if(mode == 0){
-        return (seq[pos/4] >> 2*(pos % 4)) & 0b11;
+uint8_t get_num(uint8_t pos){
+    return (seq[pos/4] >> 2*(pos % 4)) & 0b11; // magic
+}
+void set_num(uint8_t pos, uint8_t num){
+
+}
+void push_back(){
+    if(((N+1 < 4*MAX_SIZE) || ((mode&1) == 0 && N+1<2*MAX_SIZE)){
+            rand_num = (rand_num >> 0x01U) ^ (-(rand_num & 0x01U) & 0xB400U);// pseudo random gen
+            set_num(N,rand_num);
+            N++;
+    }else{
+        // overflow
     }
-    return (seq[pos/2] >> 4*(pos&1)) & 0x0F;
+}
+void print_array(){
+    for(i=0;i<N;i++){
+        
+    }
+    i=0;
 }
 
 int main(){
     DDRB = 0;
     DDRB |= (1<<CLOCK) | (1<<LATCH) | (1<<DATA);
-	MCUCR &= ~(1<<ISC01 | 1 << ISC00);
-	GIMSK |= (1<<INT0);
-	sei();
+	MCUCR &= ~(1<<ISC01 | 1 << ISC00); // low level triggers INT0
+	GIMSK |= (1<<INT0); // enable trigger
+	sei(); // enable global interrupts
+    active = 0; // clear everything
 	for(;;){
-		mode &= 0b11100001; // clear button presses
-		while(!(PINB & (1<<INPUT))) _delay_ms(100); // wait for first press
-		
+        //check 1 button
+        button &= 0b00001111;
+        button |= 0b10000000;
+        shift_register(button & 0b10001111);
+        // delay?
+
+        //check 2 button
+        button &= 0b00001111;
+        button |= 0b01000000;
+        shift_register(button & 0b01001111);
+
+        //check 3 button
+        button &= 0b00001111;
+        button |= 0b00100000;
+        shift_register(button & 0b00101111);
+
+        //check 4 button
+        button &= 0b00001111;
+        button |= 0b00010000;
+        shift_register(button & 0b00011111);
 	}	
 }
