@@ -5,7 +5,7 @@
 #define DATA  PB0
 #define CLOCK PB2
 #define LATCH PB4
-#define BUTTON PB1  // dont change this
+#define BUTTON PB3  // dont change this
 #define MAX_SIZE 20
 
 uint8_t N;
