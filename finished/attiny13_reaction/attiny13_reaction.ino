@@ -104,7 +104,7 @@ int main() {
           speed_profile = 0;
         }
         speed_profile = 5 - speed_profile;
-        speed = 25 + speed_profile * speed_profile * 15;
+        speed = 20 + speed_profile * speed_profile * 13;
         speed_profile = 5 - speed_profile;
       }
       shift_register(1 << (speed_profile + 1));

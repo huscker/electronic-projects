@@ -1,3 +1,4 @@
+#define F_CPU 1200000UL
 #include <avr/delay.h>
 #include <avr/eeprom.h>
 #include <avr/io.h>
@@ -41,7 +42,7 @@ void set_num(uint8_t pos, uint8_t num) {
 }
 void push_back() {
   active = 0;
-  if ((N + 1 < 4 * MAX_SIZE) || ((mode & 1) == 0 && N + 1 < 2 * MAX_SIZE)) {
+  if (N + 1 < 4 * MAX_SIZE) {
     rand_num = (rand_num >> 0x01U) ^
                (-(rand_num & 0x01U) & 0xB400U); // pseudo random gen
     set_num(N, rand_num);
