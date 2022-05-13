@@ -6,20 +6,22 @@
 #define DATA PB0
 #define CLOCK PB2
 #define LATCH PB4
-#define BUTTON PB3 // dont change this
+#define BUTTON PB3
 #define MAX_SIZE 20
+#define REAL_SIZE (MAX_SIZE*4)
+#define PRINT_DELAY_MS 450
 
-uint8_t N;
-uint8_t i;
-uint8_t temp;
-uint16_t rand_num;
-uint8_t seq[MAX_SIZE]; // 4*MAX_SIZE numbers
-uint8_t btn;
-uint8_t active;
+uint8_t i; // common loop var
+uint8_t temp; // shift_register loop var
+uint16_t rand_num; // 2-byte var for generating random numbers
+uint8_t seq[MAX_SIZE]; // sequence of REAL_SIZE 2-bit numbers
+uint8_t btn; // var for button id
+uint8_t cnt; // game counter
+uint8_t active; // current stage of sequence
 /*
-shift reg:
-0b00001111
-  bbbbllll
+  shift reg:
+  0b00001111
+  llllbbbb
   b - btn
   l - led
 */
@@ -32,40 +34,44 @@ void shift_register(uint8_t value) {
     PORTB |= (1 << CLOCK);
     PORTB &= ~(1 << CLOCK);
   }
+  PORTB |= (1 << LATCH);
+  PORTB &= ~(1 << LATCH);
 }
 uint8_t get_num(uint8_t pos) {
-  return (seq[pos >> 2] >> ((pos & 0b11)<<1)) & 0b11; // magic
+  return (seq[pos >> 2] >> ((pos & 0b11) << 1)) & 0b11; // magic
 }
-void set_num(uint8_t pos, uint8_t num) {
-	seq[pos>>2] &= ~(3 << ((pos & 0b11) << 1));
-	seq[pos>>2] |= (num << ((pos & 0b11) << 1));
-}
-void push_back() {
-  active = 0;
-  if (N + 1 < 4 * MAX_SIZE) {
+void generate_sequence() {
+  for (i = 0; i < REAL_SIZE; i++) {
     rand_num = (rand_num >> 0x01U) ^
                (-(rand_num & 0x01U) & 0xB400U); // pseudo random gen
-    set_num(N, rand_num);
-    N++;
-  } else {
-    // overflow
+    seq[i >> 2] &= ~(3 << ((i & 0b11) << 1)); // clear cell
+    seq[i >> 2] |= ((rand_num & 3) << ((i & 0b11) << 1)); // set number
   }
-  for (i = 0; i < N; i++) {
-    shift_register(1 << (get_num(i)));
-    _delay_ms(1000);
+}
+void print_sequence() {
+  for (i = 0; i < cnt; i++) {
+    shift_register(1 << (get_num(i)+4));
+    _delay_ms(PRINT_DELAY_MS);
+    shift_register(0);
+    _delay_ms(PRINT_DELAY_MS);
   }
-  shift_register(0);
 }
 
 int main() {
   DDRB = 0;
   DDRB |= (1 << CLOCK) | (1 << LATCH) | (1 << DATA);
-  init(); // можно убрать если памяти не хватит
-  active = 0; // clear everything
-  btn = 5;
+  init();
+  cnt = 1;
+  active = 0;
+  shift_register(0xFF); // generate seed using human
+  while(!(PINB & (1 << BUTTON))) _delay_ms(10);
+  rand_num = micros() ^ 0xabcd;
+  generate_sequence();
+  print_sequence();
   for (;;) {
+    btn = 5;
     for (i = 0; i < 4; i++) {
-      shift_register(1 << (i + 4));
+      shift_register(1 << i);
       _delay_ms(20);
       if (PINB & (1 << BUTTON)) {
         _delay_ms(10);
@@ -75,16 +81,24 @@ int main() {
       }
     }
     if (btn < 5) {
-      if (get_num(active) == btn) {
+      _delay_ms(PRINT_DELAY_MS);
+      if (btn == get_num(active)) {
         active++;
-        if (active >= N) {
-          push_back(); // active = 0, N++
+        if (active >= cnt) { // increase counter
+          cnt++;
+          if (cnt >= REAL_SIZE) { // overflow check
+            generate_sequence();
+            cnt = 0;
+          }
+          print_sequence();
+          active = 0;
         }
-      } else {
-        N = 0;
-        push_back(); // active = 0, N++
+      } else { // game is lost
+        generate_sequence();
+        print_sequence();
+        cnt = 1;
+        active = 0;
       }
-      btn = 5;
     }
   }
 }
