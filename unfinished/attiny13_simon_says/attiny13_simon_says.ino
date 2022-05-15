@@ -41,11 +41,11 @@ uint8_t get_num(uint8_t pos) {
   return (seq[pos >> 2] >> ((pos & 0b11) << 1)) & 0b11; // magic
 }
 void generate_sequence() {
-  for (i = 0; i < REAL_SIZE; i++) {
+  for (i = 1; i < MAX_SIZE; i+=2) {
     rand_num = (rand_num >> 0x01U) ^
                (-(rand_num & 0x01U) & 0xB400U); // pseudo random gen
-    seq[i >> 2] &= ~(3 << ((i & 0b11) << 1)); // clear cell
-    seq[i >> 2] |= ((rand_num & 3) << ((i & 0b11) << 1)); // set number
+    seq[i] = rand_num & 0x00FF;
+    seq[i-1] = (rand_num & 0xFF00) >> 8;
   }
 }
 void print_sequence() {
@@ -94,10 +94,10 @@ int main() {
           active = 0;
         }
       } else { // game is lost
-        generate_sequence();
-        print_sequence();
         cnt = 1;
         active = 0;
+        generate_sequence();
+        print_sequence();
       }
     }
   }
